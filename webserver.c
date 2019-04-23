@@ -27,9 +27,9 @@ int main() {
 	/* fill fields of sockaddr_in */
 
 	memset(&server_addr, 0, sizeof(server_addr));
-	server_addr.sin_family = PFINET;
+	server_addr.sin_family = PF_INET;
 	server_addr.sin_port = htons(PORTNO);
-	my_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* should not depend on htonl */
+	server_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* should not depend on htonl */
 
 	/* bind socket */
 
@@ -41,12 +41,12 @@ int main() {
 	/* listen for connections on the socket */
 
 	if (listen(sockfd, BACKLOG) == -1) {
-		perror("Failed to listen!\n")
+		perror("Failed to listen!\n");
 		exit(-1);
 	}
 
 	while(1) {
-		
+
 	}
 
 }
