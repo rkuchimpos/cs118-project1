@@ -11,6 +11,22 @@
 #define PORTNO 33623
 #define BACKLOG 10
 
+char* parse_request(char *buf) {
+	/* break request into first line */
+	char *line;
+	line = strtok(buf, "\n");
+
+	/* retrieve file name (with "/") */
+	char *field;
+	field = strtok(line, " ");
+	field = strtok(NULL, " ");
+
+	/* convert to pure file name */
+	field++;
+
+	return field;
+}
+
 void handle_request(int fd) {
 	const int buf_size = 8192;
 	char buf[buf_size];
@@ -21,8 +37,9 @@ void handle_request(int fd) {
 		return;
 	}
 
-	printf("REQUEST:\n");
 	printf("%s", buf);
+
+	char *filename = parse_request(buf);
 }
 
 void get_content_type(char *filename, char *content_type) {
