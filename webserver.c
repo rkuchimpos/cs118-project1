@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #define PORTNO 33623
 #define BACKLOG 10
@@ -24,12 +25,17 @@ char* parse_request(char *buf) {
 	/* convert to pure file name */
 	field++;
 
+	for (int i = 0; i < strlen(field); i++) {
+		field[i] = tolower(field[i]);
+	}
+
 	return field;
 }
 
 void handle_request(int fd) {
 	const int buf_size = 8192;
 	char buf[buf_size];
+	FILE *f;
 
 	ssize_t n = recv(fd, buf, buf_size - 1, 0);
 	if (n < 0) {
@@ -40,6 +46,14 @@ void handle_request(int fd) {
 	printf("%s", buf);
 
 	char *filename = parse_request(buf);
+
+	/* open the file for binary reading */
+	if ((f = fopen(filename, "rb")) == NULL) {
+		/* 404 ERROR */
+	}
+
+	/* do whatever with f */
+
 }
 
 void get_content_type(char *filename, char *content_type) {
