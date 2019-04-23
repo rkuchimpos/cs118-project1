@@ -25,6 +25,33 @@ void handle_request(int fd) {
 	printf("%s", buf);
 }
 
+void get_content_type(char *filename, char *content_type) {
+	char *extension = strchr(filename, '.');
+
+	if (extension == NULL) {
+		/* TODO: handle case when extension is unspecified */
+	}
+
+	if (strcmp(extension, ".html") == 0) {
+		strcpy(content_type, "text/html");
+	} else if (strcmp(extension, ".html") == 0) {
+		strcpy(content_type , "text/html");
+	} else if (strcmp(extension, ".txt") == 0) {
+		strcpy(content_type, "text/plain");
+	} else if (strcmp(extension, ".jpg") == 0) {
+		strcpy(content_type, "image/jpeg");
+	} else if (strcmp(extension, ".jpeg") == 0) {
+		strcpy(content_type, "image/jpeg");
+	} else if (strcmp(extension, ".png") == 0) {
+		strcpy(content_type, "image/png");
+	} else if (strcmp(extension, ".gif") == 0) {
+		strcpy(content_type, "image/gif");
+	} else {
+		/* TODO: figure out what to do here */
+	}
+}
+
+
 int main() {
 	int sockfd; /* listen on sock_fd */
 	int new_fd; /* new connection on new_fd */
