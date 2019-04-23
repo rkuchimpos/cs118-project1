@@ -6,16 +6,31 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
+#include <unistd.h>
 
 #define PORTNO 33623
 #define BACKLOG 10
+
+void handle_request(int fd) {
+	const int buf_size = 8192;
+	char buf[buf_size];
+
+	ssize_t n = recv(fd, buf, buf_size - 1, 0);
+	if (n < 0) {
+		perror("recv error");
+		return;
+	}
+
+	printf("REQUEST:\n");
+	printf("%s", buf);
+}
 
 int main() {
 	int sockfd; /* listen on sock_fd */
 	int new_fd; /* new connection on new_fd */
 	struct sockaddr_in server_addr; /* my address */
 	struct sockaddr_in client_addr; /* connector addr */
-	int sin_size;
+	socklen_t sin_size;
 
  	/* create socket */
 
@@ -45,8 +60,19 @@ int main() {
 		exit(-1);
 	}
 
-	while(1) {
 
+	/* accept connections */
+
+	while(1) {
+		sin_size = sizeof(struct sockaddr_in);
+		new_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
+		if (new_fd == -1) {
+			perror("Unable to accept connection");
+			continue;
+		}
+
+		handle_request(new_fd);
+		close(new_fd);
 	}
 
 }
