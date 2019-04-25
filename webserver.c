@@ -8,9 +8,65 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <dirent.h>
 
-#define PORTNO 33623
+#define PORTNO 33624
 #define BACKLOG 10
+
+#define FILENAME_SIZE 256
+
+/*
+	* if we have extension, wext is same string
+	* else, wext is filename with extension (wext)
+		* wext is filename if no matches
+
+	returns 0 upon 200 success, 1 upon 404 error code
+*/
+int match_filename(char *filename, char *wext) {
+    char *extension = strrchr(filename, '.');
+    char temp_wext[FILENAME_SIZE];
+
+    DIR *curr_dir;
+    struct dirent *dir;
+
+    if (extension != NULL)
+    	strcpy(temp_wext, filename);
+
+    curr_dir = opendir(".");
+    if (curr_dir) {
+        while ((dir = readdir(curr_dir)) != NULL) {
+        	if (extension == NULL) {
+        		strcpy(temp_wext, filename);
+
+        		/* get next file in directory extension */
+        		char *dir_extension = strrchr(dir->d_name, '.');
+        		for (int i = 0; i < strlen(dir_extension); i++)
+					dir_extension[i] = tolower(dir_extension[i]);
+
+        		/* create filename with extension */
+        		strcat(temp_wext, dir_extension);
+        	}	
+
+        	/* case insensitivity */
+            for (int i = 0; i < strlen(dir->d_name); i++)
+				dir->d_name[i] = tolower(dir->d_name[i]);
+
+			if (strcmp(temp_wext, dir->d_name) == 0) {
+				strcpy(wext, temp_wext);
+				closedir(curr_dir);
+				return 0;
+			}
+        }
+
+        /* no such file in current directory */
+        strcpy(wext, filename);
+        closedir(curr_dir);
+        return 1;
+    }
+
+    strcpy(wext, filename);
+    return 1;
+}
 
 void parse_request(char *buf, char *filename) {
 	/* break request into first line */
@@ -22,9 +78,8 @@ void parse_request(char *buf, char *filename) {
 	field = strtok(line, "/");
 	field = strtok(NULL, " ");
 
-	for (int i = 0; i < strlen(field); i++) {
+	for (int i = 0; i < strlen(field); i++)
 		field[i] = tolower(field[i]);
-	}
 
 	/* copy filename to return value */
 	strcpy(filename, field);
@@ -32,9 +87,9 @@ void parse_request(char *buf, char *filename) {
 
 void handle_request(int fd) {
 	const int buf_size = 8192;
-	const int filename_size = 256;
 	char buf[buf_size];
-	char filename[filename_size];
+	char filename[FILENAME_SIZE];
+	char filename_wext[FILENAME_SIZE];
 	FILE *f;
 
 	ssize_t n = recv(fd, buf, buf_size - 1, 0);
@@ -47,9 +102,13 @@ void handle_request(int fd) {
 
 	parse_request(buf, filename);
 
+	int test = match_filename(filename, filename_wext);
+
+	printf("%d\n", test);
+
 	/* open the file for binary reading */
 	if ((f = fopen(filename, "rb")) == NULL) {
-		/* 404 ERROR */
+		/* handle error */
 	}
 
 	/* do whatever with f */
