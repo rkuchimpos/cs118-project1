@@ -12,29 +12,29 @@
 #define PORTNO 33623
 #define BACKLOG 10
 
-char* parse_request(char *buf) {
+void parse_request(char *buf, char *filename) {
 	/* break request into first line */
 	char *line;
 	line = strtok(buf, "\n");
 
-	/* retrieve file name (with "/") */
+	/* retrieve file name */
 	char *field;
-	field = strtok(line, " ");
+	field = strtok(line, "/");
 	field = strtok(NULL, " ");
-
-	/* convert to pure file name */
-	field++;
 
 	for (int i = 0; i < strlen(field); i++) {
 		field[i] = tolower(field[i]);
 	}
 
-	return field;
+	/* copy filename to return value */
+	strcpy(filename, field);
 }
 
 void handle_request(int fd) {
 	const int buf_size = 8192;
+	const int filename_size = 256;
 	char buf[buf_size];
+	char filename[filename_size];
 	FILE *f;
 
 	ssize_t n = recv(fd, buf, buf_size - 1, 0);
@@ -45,7 +45,7 @@ void handle_request(int fd) {
 
 	printf("%s", buf);
 
-	char *filename = parse_request(buf);
+	parse_request(buf, filename);
 
 	/* open the file for binary reading */
 	if ((f = fopen(filename, "rb")) == NULL) {
