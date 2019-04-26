@@ -113,7 +113,8 @@ void get_content_type(char *filename, char *content_type) {
 	char *extension = strchr(filename, '.');
 
 	if (extension == NULL) {
-		/* TODO: handle case when extension is unspecified */
+		strcpy(content_type, "application/octet-stream");
+		return;
 	}
 
 	if (strcmp(extension, ".html") == 0) {
@@ -131,7 +132,7 @@ void get_content_type(char *filename, char *content_type) {
 	} else if (strcmp(extension, ".gif") == 0) {
 		strcpy(content_type, "image/gif");
 	} else {
-		/* TODO: figure out what to do here */
+		strcpy(content_type, "application/octet-stream");
 	}
 }
 
@@ -154,10 +155,6 @@ void handle_request(int fd) {
 
 	parse_request(request, filename);
 
-	int TEST = match_filename(filename);
-
-	printf("%d\n", TEST);
-
 	int ret = match_filename(filename);
 	// DEBUG ----------------
 	if (ret == -1) {
@@ -172,7 +169,7 @@ void handle_request(int fd) {
 			/* handle error */
 		}
 		file_size = get_file_size(f);
-		char content_type[16];
+		char content_type[32];
 		get_content_type(filename, content_type);
 		sprintf(header, "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %ld\n", content_type, file_size);
 	}
