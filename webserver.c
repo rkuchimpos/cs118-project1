@@ -11,7 +11,7 @@
 #include <dirent.h>
 
 #define PORTNO 33623
-#define BACKLOG 10
+#define BACKLOG 64
 
 #define FILENAME_SIZE 256
 
@@ -24,6 +24,7 @@ long int get_file_size(FILE *f) {
 	return size;
 }
 
+/* convert all occurences of %20 to spaces */
 void decode_space(char *str, char *decoded) {
 	int len = strlen(str);
 	int i = 0;
@@ -43,11 +44,8 @@ void decode_space(char *str, char *decoded) {
 }
 
 /*
-	* if we have extension, wext is same string
-	* else, wext is filename with extension (wext)
-		* wext is filename if no matches
-
-	returns 0 upon 200 success, 1 upon 404 error code
+	find a matching file,
+	returns 0 upon success, -1 if file not found
 */
 int match_filename(char *filename) {
 	DIR *curr_dir;
@@ -85,7 +83,6 @@ void parse_request(char *req, char *filename) {
 	/* break request into first line */
 	char *line;
 	line = strtok(req, "\n");
-
 	int len = strlen(line);
 	int filename_start = 3;
 	int filename_end = len - 1 - 9;
@@ -98,22 +95,23 @@ void parse_request(char *req, char *filename) {
 	char extracted_filename[filename_len + 1];
 	memcpy(extracted_filename, &req[filename_start], filename_len);
 	extracted_filename[filename_len] = '\0';
-	//strcpy(filename, extracted_filename);
 	decode_space(extracted_filename, filename);
-	//printf("filename: %s\n", extracted_filename);
 }
 
+/* send an HTTP response to the client */
 void send_response(int fd, char *header, char *body, long int content_size) {
 	write(fd, header, strlen(header));
 	write(fd, "\n", 1);
 	write(fd, body, content_size);
 }
 
+/* determines the Content-Type of the requested file */
 void get_content_type(char *filename, char *content_type) {
 	char *extension = strchr(filename, '.');
-
 	if (extension == NULL) {
-		/* TODO: handle case when extension is unspecified */
+		/* If the extension is unspecified, treat as a binary file */
+		strcpy(content_type, "application/octet-stream");
+		return;
 	}
 
 	if (strcmp(extension, ".html") == 0) {
@@ -131,7 +129,7 @@ void get_content_type(char *filename, char *content_type) {
 	} else if (strcmp(extension, ".gif") == 0) {
 		strcpy(content_type, "image/gif");
 	} else {
-		/* TODO: figure out what to do here */
+		strcpy(content_type, "application/octet-stream");
 	}
 }
 
@@ -150,16 +148,14 @@ void handle_request(int fd) {
 	}
 	request[n] = '\0';
 
+	/* output the HTTP request */
 	printf("%s", request);
-
+	/* Ignore empty requests */
+	if (strlen(request) == 0) {
+		return;
+	}
 	parse_request(request, filename);
-
-	int TEST = match_filename(filename);
-
-	printf("%d\n", TEST);
-
 	int ret = match_filename(filename);
-	// DEBUG ----------------
 	if (ret == -1) {
 		if ((f = fopen(ERROR_404_PAGE, "rb")) == NULL) {
 			/* handle error */
@@ -172,7 +168,7 @@ void handle_request(int fd) {
 			/* handle error */
 		}
 		file_size = get_file_size(f);
-		char content_type[16];
+		char content_type[32];
 		get_content_type(filename, content_type);
 		sprintf(header, "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %ld\n", content_type, file_size);
 	}
@@ -192,36 +188,30 @@ int main() {
 	socklen_t sin_size;
 
 	/* create socket */
-
 	if ((sockfd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("Failed to create socket!\n");
 		exit(-1);
 	}
 
 	/* fill fields of sockaddr_in */
-
 	memset(&server_addr, 0, sizeof(server_addr));
 	server_addr.sin_family = PF_INET;
 	server_addr.sin_port = htons(PORTNO);
 	server_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* should not depend on htonl */
 
 	/* bind socket */
-
 	if (bind(sockfd, (struct sockaddr *) &server_addr, sizeof(struct sockaddr)) == -1) {
 		perror("Failed to bind socket!\n");
 		exit(-1);
 	}
 
 	/* listen for connections on the socket */
-
 	if (listen(sockfd, BACKLOG) == -1) {
 		perror("Failed to listen!\n");
 		exit(-1);
 	}
 
-
 	/* accept connections */
-
 	while(1) {
 		sin_size = sizeof(struct sockaddr_in);
 		new_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
