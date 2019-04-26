@@ -49,53 +49,35 @@ void decode_space(char *str, char *decoded) {
 
 	returns 0 upon 200 success, 1 upon 404 error code
 */
-int match_filename(char *filename, char *wext) {
-	char *extension = strrchr(filename, '.');
-	char temp_wext[FILENAME_SIZE];
-
+int match_filename(char *filename) {
 	DIR *curr_dir;
 	struct dirent *dir;
 
-	if (extension != NULL)
-		strcpy(temp_wext, filename);
+	if (filename == NULL) {
+		return -1;
+	}
+
+	for (int i = 0; i < strlen(filename); i++)
+		filename[i] = tolower(filename[i]);
 
 	curr_dir = opendir(".");
 	if (curr_dir) {
 		while ((dir = readdir(curr_dir)) != NULL) {
-			strcpy(temp_wext, filename);
-
-			if (extension == NULL) {
-				/* get next file in directory extension */
-				char *dir_extension = strrchr(dir->d_name, '.');
-
-				/* add extension to filename if directory file has one */
-				if (dir_extension != NULL) {
-					for (int i = 0; i < strlen(dir_extension); i++)
-						dir_extension[i] = tolower(dir_extension[i]);
-
-					/* create filename with extension */
-					strcat(temp_wext, dir_extension);
-				}
-			}
-
 			/* case insensitivity */
 			for (int i = 0; i < strlen(dir->d_name); i++)
 				dir->d_name[i] = tolower(dir->d_name[i]);
 
-			if (strcmp(temp_wext, dir->d_name) == 0) {
-				strcpy(wext, temp_wext);
+			if (strcmp(filename, dir->d_name) == 0) {
 				closedir(curr_dir);
 				return 0;
 			}
 		}
 
 		/* no such file in current directory */
-		strcpy(wext, filename);
 		closedir(curr_dir);
 		return -1;
 	}
 
-	strcpy(wext, filename);
 	return -1;
 }
 
@@ -158,7 +140,6 @@ void handle_request(int fd) {
 	char request[request_size];
 	char header[2048];
 	char filename[FILENAME_SIZE];
-	char filename_wext[FILENAME_SIZE];
 	long int file_size = 0;
 	FILE *f;
 
@@ -173,11 +154,11 @@ void handle_request(int fd) {
 
 	parse_request(request, filename);
 
-	int TEST = match_filename(filename, filename_wext);
+	int TEST = match_filename(filename);
 
 	printf("%d\n", TEST);
 
-	int ret = match_filename(filename, filename_wext);
+	int ret = match_filename(filename);
 	// DEBUG ----------------
 	if (ret == -1) {
 		if ((f = fopen(ERROR_404_PAGE, "rb")) == NULL) {
@@ -187,12 +168,12 @@ void handle_request(int fd) {
 		sprintf(header, "HTTP/1.1 404 Not Found\nContent-Type: text/html\nContent-Length: %ld\n", file_size);
 	} else {
 		/* open the file for binary reading */
-		if ((f = fopen(filename_wext, "rb")) == NULL) {
+		if ((f = fopen(filename, "rb")) == NULL) {
 			/* handle error */
 		}
 		file_size = get_file_size(f);
 		char content_type[16];
-		get_content_type(filename_wext, content_type);
+		get_content_type(filename, content_type);
 		sprintf(header, "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %ld\n", content_type, file_size);
 	}
 	char *body = malloc(file_size);
