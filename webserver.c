@@ -15,6 +15,15 @@
 
 #define FILENAME_SIZE 256
 
+#define ERROR_404_PAGE "error_404.html"
+
+long int get_file_size(FILE *f) {
+	fseek(f, 0, SEEK_END);
+	long int size = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	return size;
+}
+
 /*
 	* if we have extension, wext is same string
 	* else, wext is filename with extension (wext)
@@ -40,6 +49,7 @@ int match_filename(char *filename, char *wext) {
 
         		/* get next file in directory extension */
         		char *dir_extension = strrchr(dir->d_name, '.');
+        		/* TODO(Bugfix): Check for no extension */
         		for (int i = 0; i < strlen(dir_extension); i++)
 					dir_extension[i] = tolower(dir_extension[i]);
 
@@ -61,11 +71,11 @@ int match_filename(char *filename, char *wext) {
         /* no such file in current directory */
         strcpy(wext, filename);
         closedir(curr_dir);
-        return 1;
+        return -1;
     }
 
     strcpy(wext, filename);
-    return 1;
+    return -1;
 }
 
 void parse_request(char *buf, char *filename) {
@@ -85,34 +95,10 @@ void parse_request(char *buf, char *filename) {
 	strcpy(filename, field);
 }
 
-void handle_request(int fd) {
-	const int buf_size = 8192;
-	char buf[buf_size];
-	char filename[FILENAME_SIZE];
-	char filename_wext[FILENAME_SIZE];
-	FILE *f;
-
-	ssize_t n = recv(fd, buf, buf_size - 1, 0);
-	if (n < 0) {
-		perror("recv error");
-		return;
-	}
-
-	printf("%s", buf);
-
-	parse_request(buf, filename);
-
-	int test = match_filename(filename, filename_wext);
-
-	printf("%d\n", test);
-
-	/* open the file for binary reading */
-	if ((f = fopen(filename, "rb")) == NULL) {
-		/* handle error */
-	}
-
-	/* do whatever with f */
-
+void send_response(int fd, char *header, char *body, long int content_size) {
+	write(fd, header, strlen(header));
+	write(fd, "\n", 1);
+	write(fd, body, content_size);
 }
 
 void get_content_type(char *filename, char *content_type) {
@@ -141,6 +127,50 @@ void get_content_type(char *filename, char *content_type) {
 	}
 }
 
+void handle_request(int fd) {
+	const int request_size = 8192;
+	char request[request_size];
+	char header[2048];
+	char filename[FILENAME_SIZE];
+	char filename_wext[FILENAME_SIZE];
+	long int file_size = 0;
+	FILE *f;
+
+	ssize_t n = recv(fd, request, request_size - 1, 0);
+	if (n < 0) {
+		perror("recv error");
+		return;
+	}
+
+	printf("%s", request);
+
+	parse_request(request, filename);
+
+	int ret = match_filename(filename, filename_wext);
+	// DEBUG ----------------
+	if (ret == -1) {
+		if ((f = fopen(ERROR_404_PAGE, "rb")) == NULL) {
+			/* handle error */
+		}
+		file_size = get_file_size(f);
+		sprintf(header, "HTTP/1.1 404 Not Found\nContent-Type: text/html\nContent-Length: %ld\n", file_size);
+	} else {
+		/* open the file for binary reading */
+		if ((f = fopen(filename, "rb")) == NULL) {
+			/* handle error */
+		}
+		file_size = get_file_size(f);
+		char content_type[16];
+		get_content_type(filename, content_type);
+		sprintf(header, "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %ld\n", content_type, file_size);
+	}
+	char *body = malloc(file_size);
+	fread(body, file_size, 1, f);
+	send_response(fd, header, body, file_size);
+
+	fclose(f);
+	free(body);
+}
 
 int main() {
 	int sockfd; /* listen on sock_fd */
@@ -191,5 +221,4 @@ int main() {
 		handle_request(new_fd);
 		close(new_fd);
 	}
-
 }
