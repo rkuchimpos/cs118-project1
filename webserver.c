@@ -24,6 +24,24 @@ long int get_file_size(FILE *f) {
 	return size;
 }
 
+void decode_space(char *str, char *decoded) {
+	int len = strlen(str);
+	int i = 0;
+	int j = 0;
+	while (i < len) {
+		if (i < len - 3 && str[i] == '%' && str[i + 1] == '2' && str[i + 2] == '0') {
+			decoded[j] = ' ';
+			i += 3;
+			j++;
+		} else {
+			decoded[j] = str[i];
+			i++;
+			j++;
+		}
+	}
+	decoded[j] = '\0';
+}
+
 /*
 	* if we have extension, wext is same string
 	* else, wext is filename with extension (wext)
@@ -32,36 +50,36 @@ long int get_file_size(FILE *f) {
 	returns 0 upon 200 success, 1 upon 404 error code
 */
 int match_filename(char *filename, char *wext) {
-    char *extension = strrchr(filename, '.');
-    char temp_wext[FILENAME_SIZE];
+	char *extension = strrchr(filename, '.');
+	char temp_wext[FILENAME_SIZE];
 
-    DIR *curr_dir;
-    struct dirent *dir;
+	DIR *curr_dir;
+	struct dirent *dir;
 
-    if (extension != NULL)
-    	strcpy(temp_wext, filename);
+	if (extension != NULL)
+		strcpy(temp_wext, filename);
 
-    curr_dir = opendir(".");
-    if (curr_dir) {
-        while ((dir = readdir(curr_dir)) != NULL) {
-        	strcpy(temp_wext, filename);
+	curr_dir = opendir(".");
+	if (curr_dir) {
+		while ((dir = readdir(curr_dir)) != NULL) {
+			strcpy(temp_wext, filename);
 
-        	if (extension == NULL) {
-        		/* get next file in directory extension */
-        		char *dir_extension = strrchr(dir->d_name, '.');
+			if (extension == NULL) {
+				/* get next file in directory extension */
+				char *dir_extension = strrchr(dir->d_name, '.');
 
-        		/* add extension to filename if directory file has one */
-        		if (dir_extension != NULL) {
-        			for (int i = 0; i < strlen(dir_extension); i++)
+				/* add extension to filename if directory file has one */
+				if (dir_extension != NULL) {
+					for (int i = 0; i < strlen(dir_extension); i++)
 						dir_extension[i] = tolower(dir_extension[i]);
 
-        			/* create filename with extension */
-        			strcat(temp_wext, dir_extension);
-        		}
-        	}
+					/* create filename with extension */
+					strcat(temp_wext, dir_extension);
+				}
+			}
 
-        	/* case insensitivity */
-            for (int i = 0; i < strlen(dir->d_name); i++)
+			/* case insensitivity */
+			for (int i = 0; i < strlen(dir->d_name); i++)
 				dir->d_name[i] = tolower(dir->d_name[i]);
 
 			if (strcmp(temp_wext, dir->d_name) == 0) {
@@ -69,33 +87,38 @@ int match_filename(char *filename, char *wext) {
 				closedir(curr_dir);
 				return 0;
 			}
-        }
+		}
 
-        /* no such file in current directory */
-        strcpy(wext, filename);
-        closedir(curr_dir);
-        return -1;
-    }
+		/* no such file in current directory */
+		strcpy(wext, filename);
+		closedir(curr_dir);
+		return -1;
+	}
 
-    strcpy(wext, filename);
-    return -1;
+	strcpy(wext, filename);
+	return -1;
 }
 
-void parse_request(char *buf, char *filename) {
+void parse_request(char *req, char *filename) {
 	/* break request into first line */
 	char *line;
-	line = strtok(buf, "\n");
+	line = strtok(req, "\n");
 
-	/* retrieve file name */
-	char *field;
-	field = strtok(line, "/");
-	field = strtok(NULL, " ");
-
-	for (int i = 0; i < strlen(field); i++)
-		field[i] = tolower(field[i]);
-
-	/* copy filename to return value */
-	strcpy(filename, field);
+	int len = strlen(line);
+	int filename_start = 3;
+	int filename_end = len - 1 - 9;
+	while (filename_start < len && req[filename_start] == ' ')
+		filename_start++;
+	filename_start++; /* Consume forward slash */
+	while (filename_end >= 0 && req[filename_end] == ' ')
+		filename_end--;
+	int filename_len = filename_end - filename_start + 1;
+	char extracted_filename[filename_len + 1];
+	memcpy(extracted_filename, &req[filename_start], filename_len);
+	extracted_filename[filename_len] = '\0';
+	//strcpy(filename, extracted_filename);
+	decode_space(extracted_filename, filename);
+	//printf("filename: %s\n", extracted_filename);
 }
 
 void send_response(int fd, char *header, char *body, long int content_size) {
@@ -144,6 +167,7 @@ void handle_request(int fd) {
 		perror("recv error");
 		return;
 	}
+	request[n] = '\0';
 
 	printf("%s", request);
 
@@ -163,12 +187,12 @@ void handle_request(int fd) {
 		sprintf(header, "HTTP/1.1 404 Not Found\nContent-Type: text/html\nContent-Length: %ld\n", file_size);
 	} else {
 		/* open the file for binary reading */
-		if ((f = fopen(filename, "rb")) == NULL) {
+		if ((f = fopen(filename_wext, "rb")) == NULL) {
 			/* handle error */
 		}
 		file_size = get_file_size(f);
 		char content_type[16];
-		get_content_type(filename, content_type);
+		get_content_type(filename_wext, content_type);
 		sprintf(header, "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %ld\n", content_type, file_size);
 	}
 	char *body = malloc(file_size);
@@ -186,7 +210,7 @@ int main() {
 	struct sockaddr_in client_addr; /* connector addr */
 	socklen_t sin_size;
 
- 	/* create socket */
+	/* create socket */
 
 	if ((sockfd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("Failed to create socket!\n");
