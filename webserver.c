@@ -10,7 +10,7 @@
 #include <ctype.h>
 #include <dirent.h>
 
-#define PORTNO 33624
+#define PORTNO 33623
 #define BACKLOG 10
 
 #define FILENAME_SIZE 256
@@ -44,18 +44,21 @@ int match_filename(char *filename, char *wext) {
     curr_dir = opendir(".");
     if (curr_dir) {
         while ((dir = readdir(curr_dir)) != NULL) {
-        	if (extension == NULL) {
-        		strcpy(temp_wext, filename);
+        	strcpy(temp_wext, filename);
 
+        	if (extension == NULL) {
         		/* get next file in directory extension */
         		char *dir_extension = strrchr(dir->d_name, '.');
-        		/* TODO(Bugfix): Check for no extension */
-        		for (int i = 0; i < strlen(dir_extension); i++)
-					dir_extension[i] = tolower(dir_extension[i]);
 
-        		/* create filename with extension */
-        		strcat(temp_wext, dir_extension);
-        	}	
+        		/* add extension to filename if directory file has one */
+        		if (dir_extension != NULL) {
+        			for (int i = 0; i < strlen(dir_extension); i++)
+						dir_extension[i] = tolower(dir_extension[i]);
+
+        			/* create filename with extension */
+        			strcat(temp_wext, dir_extension);
+        		}
+        	}
 
         	/* case insensitivity */
             for (int i = 0; i < strlen(dir->d_name); i++)
@@ -145,6 +148,10 @@ void handle_request(int fd) {
 	printf("%s", request);
 
 	parse_request(request, filename);
+
+	int TEST = match_filename(filename, filename_wext);
+
+	printf("%d\n", TEST);
 
 	int ret = match_filename(filename, filename_wext);
 	// DEBUG ----------------
