@@ -155,6 +155,7 @@ void handle_request(int fd) {
 		return;
 	}
 	parse_request(request, filename);
+
 	int ret = match_filename(filename);
 	if (ret == -1) {
 		if ((f = fopen(ERROR_404_PAGE, "rb")) == NULL) {
