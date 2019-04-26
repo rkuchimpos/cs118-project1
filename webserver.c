@@ -107,7 +107,7 @@ void send_response(int fd, char *header, char *body, long int content_size) {
 
 /* determines the Content-Type of the requested file */
 void get_content_type(char *filename, char *content_type) {
-	char *extension = strchr(filename, '.');
+	char *extension = strrchr(filename, '.');
 	if (extension == NULL) {
 		/* If the extension is unspecified, treat as a binary file */
 		strcpy(content_type, "application/octet-stream");
