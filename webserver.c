@@ -62,10 +62,13 @@ int match_filename(char *filename) {
 	if (curr_dir) {
 		while ((dir = readdir(curr_dir)) != NULL) {
 			/* case insensitivity */
+            char temp[FILENAME_SIZE];
+            strcpy(temp, dir->d_name);
 			for (int i = 0; i < strlen(dir->d_name); i++)
-				dir->d_name[i] = tolower(dir->d_name[i]);
+				temp[i] = tolower(dir->d_name[i]);
 
-			if (strcmp(filename, dir->d_name) == 0) {
+			if (strcmp(filename, temp) == 0) {
+                strcpy(filename, dir->d_name);
 				closedir(curr_dir);
 				return 0;
 			}
