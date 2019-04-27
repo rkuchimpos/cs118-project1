@@ -1,0 +1,29 @@
+Jesse Catalan: 204785152
+Ricardo Kuchimpos: 704827423
+
+----------------
+Included Files:
+----------------
+
+webserver.c: source code for HTML webserver
+
+report.pdf:
+	1. high-level description of server’s design.
+	2. difficulties in designing server
+	3. brief manual on how to compile and run source code
+	4. sample outputs of your client-server
+
+Makefile: build webserver executable, create tarball, clean directory
+
+README: student names and IDs, list of files included in tarball
+
+error_404.html: HTML 404 error page
+
+------------
+TEST FILES:
+------------
+	screenshot.png
+	screen shot.png
+	test.txt
+	webpage.html
+	bird404.png
