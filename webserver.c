@@ -18,6 +18,7 @@
 #define ERROR_404_PAGE "error_404.html"
 
 long int get_file_size(FILE *f) {
+	assert(f != NULL);
 	fseek(f, 0, SEEK_END);
 	long int size = ftell(f);
 	fseek(f, 0, SEEK_SET);
@@ -162,14 +163,16 @@ void handle_request(int fd) {
 	int ret = match_filename(filename);
 	if (ret == -1) {
 		if ((f = fopen(ERROR_404_PAGE, "rb")) == NULL) {
-			/* handle error */
+			perror(NULL);
+			exit(-1);
 		}
 		file_size = get_file_size(f);
 		sprintf(header, "HTTP/1.1 404 Not Found\nContent-Type: text/html\nContent-Length: %ld\n", file_size);
 	} else {
 		/* open the file for binary reading */
 		if ((f = fopen(filename, "rb")) == NULL) {
-			/* handle error */
+			perror(NULL);
+			exit(-1);
 		}
 		file_size = get_file_size(f);
 		char content_type[32];
